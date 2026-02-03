@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GatekeeperResult",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "is_finance_relevant": {
+      "type": "boolean",
+      "description": "True if the post is about markets, assets, macro, or trading."
+    },
+    "is_actionable_trade_idea": {
+      "type": "boolean",
+      "description": "True if the post expresses a stance or trade setup (levels, catalyst, timing)."
+    },
+    "has_media_worth_processing": {
+      "type": "boolean",
+      "description": "True if media likely contains trade-relevant information (chart/screenshot)."
+    },
+    "primary_assets_detected": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Tickers/cashtags/asset names explicitly mentioned."
+    },
+    "reason_code": {
+      "type": "string",
+      "enum": ["macro", "single_name", "sector", "crypto", "rates", "other"],
+      "description": "Primary category for routing."
+    }
+  },
+  "required": [
+    "is_finance_relevant",
+    "is_actionable_trade_idea",
+    "has_media_worth_processing",
+    "primary_assets_detected",
+    "reason_code"
+  ]
+}

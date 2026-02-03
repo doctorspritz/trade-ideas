@@ -1,0 +1,7 @@
+.runtime/
+.claude/
+.logs/
+.beads/
+data/
+mail/
+state.json
