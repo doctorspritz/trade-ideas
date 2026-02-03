@@ -5,3 +5,5 @@
 data/
 mail/
 state.json
+.env
+digest.md
