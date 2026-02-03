@@ -2,6 +2,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import os
+
 from openai import OpenAI
 
 
@@ -41,3 +43,22 @@ def structured_call(
     if not content:
         raise ValueError("Empty response from model.")
     return json.loads(content)
+
+
+def build_client() -> OpenAI:
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    if openrouter_key:
+        base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        headers = {}
+        if os.getenv("OPENROUTER_SITE_URL"):
+            headers["HTTP-Referer"] = os.getenv("OPENROUTER_SITE_URL")
+        if os.getenv("OPENROUTER_APP_NAME"):
+            headers["X-Title"] = os.getenv("OPENROUTER_APP_NAME")
+        return OpenAI(api_key=openrouter_key, base_url=base_url, default_headers=headers)
+    return OpenAI()
+
+
+def normalize_model_name(model: str) -> str:
+    if os.getenv("OPENROUTER_API_KEY") and "/" not in model:
+        return f"openai/{model}"
+    return model

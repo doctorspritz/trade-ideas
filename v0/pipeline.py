@@ -6,10 +6,9 @@ from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
-from openai import OpenAI
 
 from v0.db import fetch_unprocessed, init_db, insert_raw_post, text_hash_exists, update_alpha, update_gatekeeper
-from v0.llm import load_prompt, load_schema, structured_call
+from v0.llm import build_client, load_prompt, load_schema, normalize_model_name, structured_call
 
 
 NOISE_RE = re.compile(
@@ -59,7 +58,9 @@ def process_posts(
     schema_dir: Path,
 ) -> int:
     load_dotenv()
-    client = OpenAI()
+    client = build_client()
+    model_gatekeeper = normalize_model_name(model_gatekeeper)
+    model_analyst = normalize_model_name(model_analyst)
     gate_prompt = load_prompt(prompt_dir / "gatekeeper.md")
     gate_schema = load_schema(schema_dir / "gatekeeper.schema.json")
     alpha_prompt = load_prompt(prompt_dir / "analyst.md")

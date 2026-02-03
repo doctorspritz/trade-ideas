@@ -15,9 +15,13 @@
    ```bash
    X_LIST_ID=YOUR_LIST_ID python scrapers/x_list_playwright.py --headless --max-posts 50
    ```
-4. Run the v0 pipeline (requires `OPENAI_API_KEY` in env):
+4. Run the v0 pipeline:
    ```bash
-   python -m v0.run --input data/x_posts.jsonl --digest-out digest.md
+   # OpenAI
+   OPENAI_API_KEY=... python -m v0.run --input data/x_posts.jsonl --digest-out digest.md
+
+   # OpenRouter
+   OPENROUTER_API_KEY=... python -m v0.run --input data/x_posts.jsonl --digest-out digest.md
    ```
 
 Output: `digest.md` in the repo root.
