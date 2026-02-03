@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AlphaObjectV2",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "assets": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Canonical asset identifiers or tickers explicitly mentioned."
+    },
+    "asset_class_tag": {
+      "type": ["string", "null"],
+      "enum": ["equity", "options", "futures", "crypto", "rates", "fx", "commodities", "other", null],
+      "description": "Optional asset class tag."
+    },
+    "stance": {
+      "type": "string",
+      "enum": ["bullish", "bearish", "neutral", "unclear"]
+    },
+    "timeframe": {
+      "type": "string",
+      "enum": ["intraday", "swing", "position", "unknown"]
+    },
+    "time_decay_half_life": {
+      "type": ["string", "null"],
+      "enum": ["2h", "8h", "24h", "3d", "7d", null],
+      "description": "Optional timeframe decay bucket."
+    },
+    "catalyst": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["earnings", "macro", "data", "flow", "technical", "news", "other"]
+      }
+    },
+    "key_levels": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "entry": { "type": ["string", "null"] },
+        "invalidation": { "type": ["string", "null"] },
+        "targets": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["entry", "invalidation", "targets"]
+    },
+    "conditional_logic": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Normalized if/then statements."
+    },
+    "rationale_bullets": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Concise rationale (max 5 items)."
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "url": { "type": "string" },
+              "type": {
+                "type": ["string", "null"],
+                "enum": ["news", "filing", "chart", "research", "data", "other", null]
+              }
+            },
+            "required": ["url", "type"]
+          }
+        },
+        "mentions": { "type": "array", "items": { "type": "string" } },
+        "media": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "url": { "type": "string" },
+              "type": { "type": "string" },
+              "summary": { "type": ["string", "null"] }
+            },
+            "required": ["url", "type", "summary"]
+          }
+        }
+      },
+      "required": ["links", "mentions", "media"]
+    },
+    "ambiguities": { "type": "array", "items": { "type": "string" } },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "author_id": { "type": ["string", "null"] },
+        "username": { "type": ["string", "null"] },
+        "post_id": { "type": "string" },
+        "post_url": { "type": ["string", "null"] },
+        "is_retweet_or_repost": { "type": "boolean" },
+        "is_quote": { "type": "boolean" },
+        "thread_post_ids": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": [
+        "author_id",
+        "username",
+        "post_id",
+        "post_url",
+        "is_retweet_or_repost",
+        "is_quote",
+        "thread_post_ids"
+      ]
+    },
+    "quality_signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "specificity_score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "evidence_score": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "language_confidence": { "type": ["string", "null"], "enum": ["low", "medium", "high", null] }
+      },
+      "required": ["specificity_score", "evidence_score", "language_confidence"]
+    },
+    "extraction_confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    }
+  },
+  "required": [
+    "assets",
+    "asset_class_tag",
+    "stance",
+    "timeframe",
+    "time_decay_half_life",
+    "catalyst",
+    "key_levels",
+    "conditional_logic",
+    "rationale_bullets",
+    "evidence",
+    "ambiguities",
+    "origin",
+    "quality_signals",
+    "extraction_confidence"
+  ]
+}
