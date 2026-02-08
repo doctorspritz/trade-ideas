@@ -15,6 +15,15 @@
    ```bash
    X_LIST_ID=YOUR_LIST_ID python scrapers/x_list_playwright.py --headless --max-posts 50
    ```
+
+   Add accounts to a list (best-effort UI automation):
+   ```bash
+   # Option A: pass list id/url directly
+   python scrapers/x_list_playwright.py --list-id YOUR_LIST_ID --add-members --members @foo @bar
+
+   # Option B: use an alias env var, e.g. X_LIST_ID_2UK
+   X_LIST_ID_2UK=YOUR_LIST_ID python scrapers/x_list_playwright.py --list-alias 2uk --add-members --members @foo @bar
+   ```
 4. Run the v0 pipeline:
    ```bash
    # OpenAI

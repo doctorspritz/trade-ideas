@@ -2,9 +2,12 @@ import argparse
 import json
 import os
 import re
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from dotenv import load_dotenv
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 from playwright.sync_api import sync_playwright
 
 
@@ -49,6 +52,154 @@ def login(storage_state_path: Path, headless: bool) -> None:
         context.storage_state(path=str(storage_state_path))
         context.close()
         browser.close()
+
+
+def _wait_any(page, selectors: list[str], timeout_ms: int = 15000):
+    """Wait for the first selector that appears; returns the selector."""
+    start = time.time()
+    last_err: Exception | None = None
+    while (time.time() - start) * 1000 < timeout_ms:
+        for sel in selectors:
+            try:
+                page.wait_for_selector(sel, timeout=750)
+                return sel
+            except PlaywrightTimeoutError as err:
+                last_err = err
+                continue
+    raise PlaywrightTimeoutError(f"None of selectors appeared: {selectors}. Last error: {last_err}")
+
+
+def add_members_to_list(
+    list_url: str,
+    storage_state_path: Path,
+    members: list[str],
+    headless: bool,
+    slow_mo: int,
+) -> None:
+    """Best-effort UI automation to add members to an X list.
+
+    Notes:
+      - X UI changes frequently; this uses multiple selector fallbacks.
+      - Requires an authenticated storage_state (run with --login first).
+    """
+
+    cleaned = []
+    for m in members:
+        m = (m or "").strip()
+        if not m:
+            continue
+        cleaned.append(m[1:] if m.startswith("@") else m)
+
+    if not cleaned:
+        print("No members provided.")
+        return
+
+    # Try to jump straight to the members management surface.
+    members_url = list_url.rstrip("/") + "/members"
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(headless=headless, slow_mo=slow_mo)
+        context = browser.new_context(storage_state=str(storage_state_path))
+        page = context.new_page()
+
+        page.goto(members_url, wait_until="domcontentloaded")
+
+        # Some accounts land on list timeline first; ensure we can see member UI.
+        _wait_any(
+            page,
+            selectors=[
+                'a[href$="/members"]',
+                'text=/Members/i',
+                'input[placeholder*="Search"]',
+            ],
+            timeout_ms=60000,
+        )
+
+        # Attempt to open the member management dialog/screen.
+        # Common flows:
+        #   - Members tab has an "Add" / "Add member" button
+        #   - Kebab menu -> Manage members
+        opened_manage = False
+        for attempt in range(3):
+            try:
+                # If we're not on members page, click it.
+                members_tab = page.get_by_role("link", name=re.compile(r"members", re.I))
+                if members_tab.count():
+                    members_tab.first.click(timeout=3000)
+
+                add_btn = page.get_by_role(
+                    "button",
+                    name=re.compile(r"add( member)?|add people|add to list", re.I),
+                )
+                if add_btn.count():
+                    add_btn.first.click(timeout=5000)
+                    opened_manage = True
+                    break
+
+                options_btn = page.get_by_role(
+                    "button",
+                    name=re.compile(r"list options|more|options", re.I),
+                )
+                if options_btn.count():
+                    options_btn.first.click(timeout=5000)
+                    manage_item = page.get_by_role(
+                        "menuitem",
+                        name=re.compile(r"manage members|edit list", re.I),
+                    )
+                    if manage_item.count():
+                        manage_item.first.click(timeout=5000)
+                        opened_manage = True
+                        break
+            except Exception:
+                pass
+
+            page.wait_for_timeout(750)
+            if attempt == 2 and not opened_manage:
+                print("Warning: couldn't confidently open member management UI; will still try searching inline.")
+
+        # The manage screen usually contains a search box for accounts.
+        search_selectors = [
+            'input[placeholder*="Search"]',
+            'input[aria-label*="Search"]',
+            'input[type="text"]',
+        ]
+
+        added = 0
+        for username in cleaned:
+            print(f"Adding @{username}...")
+            try:
+                # Focus search
+                sel = _wait_any(page, search_selectors, timeout_ms=20000)
+                page.locator(sel).first.click(timeout=2000)
+                page.locator(sel).first.fill("", timeout=2000)
+                page.locator(sel).first.type(username, delay=30)
+
+                # Results: click the relevant "Add" button.
+                # Heuristic: row containing @username and an Add button.
+                row = page.get_by_text(f"@{username}", exact=False).first
+                row.wait_for(timeout=10000)
+
+                add_in_row = page.get_by_role("button", name=re.compile(r"add", re.I))
+                # Narrow by proximity if possible
+                try:
+                    container = row.locator("xpath=ancestor::div[1]")
+                    btn = container.get_by_role("button", name=re.compile(r"add", re.I))
+                    if btn.count():
+                        btn.first.click(timeout=5000)
+                    else:
+                        add_in_row.first.click(timeout=5000)
+                except Exception:
+                    add_in_row.first.click(timeout=5000)
+
+                added += 1
+                page.wait_for_timeout(750)
+            except Exception as err:
+                print(f"Failed to add @{username}: {err}")
+
+        context.close()
+        browser.close()
+
+    print(f"Added {added}/{len(cleaned)} accounts.")
 
 
 def scrape_list(
@@ -132,10 +283,29 @@ def scrape_list(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Playwright list scraper (test-only).")
+    load_dotenv()
+
+    parser = argparse.ArgumentParser(description="Playwright list scraper / list member helper (test-only).")
     parser.add_argument("--list-id", help="X list ID (preferred).")
     parser.add_argument("--list-url", help="Full list URL (optional override).")
+    parser.add_argument(
+        "--list-alias",
+        help="Alias that resolves to env var X_LIST_ID_<ALIAS> (e.g. --list-alias 2uk uses X_LIST_ID_2UK).",
+    )
     parser.add_argument("--login", action="store_true", help="Run interactive login to save session.")
+
+    parser.add_argument("--add-members", action="store_true", help="Add accounts to the list (best-effort).")
+    parser.add_argument(
+        "--members",
+        nargs="*",
+        default=[],
+        help="Usernames to add (e.g. --members @foo @bar).",
+    )
+    parser.add_argument(
+        "--members-file",
+        help="Path to newline-separated usernames (optionally with @ prefix).",
+    )
+
     parser.add_argument("--max-posts", type=int, default=50)
     parser.add_argument("--max-scrolls", type=int, default=8)
     parser.add_argument("--headless", action="store_true")
@@ -151,14 +321,36 @@ def main() -> None:
         login(storage_state_path=storage_state_path, headless=False)
         return
 
-    list_id_or_url = args.list_url or args.list_id or os.environ.get("X_LIST_ID")
+    list_id_or_url = args.list_url or args.list_id
+    if not list_id_or_url and args.list_alias:
+        key = f"X_LIST_ID_{args.list_alias.upper()}"
+        list_id_or_url = os.environ.get(key)
+
+    list_id_or_url = list_id_or_url or os.environ.get("X_LIST_ID")
     if not list_id_or_url:
-        raise SystemExit("Provide --list-id or --list-url (or set X_LIST_ID).")
+        raise SystemExit(
+            "Provide --list-id or --list-url (or --list-alias with X_LIST_ID_<ALIAS> set; or set X_LIST_ID)."
+        )
 
     list_url = normalize_list_url(list_id_or_url)
 
     if not storage_state_path.exists():
         raise SystemExit("Storage state missing. Run with --login first.")
+
+    members = list(args.members or [])
+    if args.members_file:
+        p = Path(args.members_file)
+        members.extend([ln.strip() for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()])
+
+    if args.add_members:
+        add_members_to_list(
+            list_url=list_url,
+            storage_state_path=storage_state_path,
+            members=members,
+            headless=args.headless,
+            slow_mo=args.slow_mo,
+        )
+        return
 
     scrape_list(
         list_url=list_url,
