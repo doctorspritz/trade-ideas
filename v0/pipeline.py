@@ -47,7 +47,7 @@ def ingest_jsonl(conn, jsonl_path: Path) -> int:
                 continue
             row["post_id"] = post_id
             row["text_hash"] = text_hash(row.get("text", ""))
-            row["raw_json"] = row
+            row["raw_json"] = json.dumps(row)
             if text_hash_exists(conn, row["text_hash"]):
                 continue
             if insert_raw_post(conn, row):

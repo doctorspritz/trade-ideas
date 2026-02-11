@@ -34,7 +34,7 @@ def insert_raw_post(conn: sqlite3.Connection, row: dict[str, Any]) -> bool:
             row.get("created_at"),
             row.get("scraped_at"),
             row.get("text_hash"),
-            json.dumps(row.get("raw_json", row), ensure_ascii=False),
+            row.get("raw_json") or json.dumps(row, ensure_ascii=False),
         ),
     )
     conn.commit()
