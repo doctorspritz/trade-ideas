@@ -3,7 +3,6 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Iterable
 
-
 MIGRATION_PATH = Path(__file__).resolve().parents[1] / "db" / "migrations" / "001_init.sql"
 
 

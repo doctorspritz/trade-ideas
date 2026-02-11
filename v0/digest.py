@@ -40,13 +40,17 @@ def make_digest(hours: int = 12) -> str:
         for _, alpha in items:
             stances[alpha.get("stance", "unclear")] += 1
 
-        stance_text = ", ".join([f\"{k}:{v}\" for k, v in stances.items()])
+        stance_text = ", ".join([f"{k}:{v}" for k, v in stances.items()])
         lines.append(f"## {asset} — {stance_text}")
         lines.append("")
 
         for row, alpha in items[:5]:
             username = row["username"]
-            url = f"https://x.com/{username}/status/{row['post_id']}" if username else f\"(post {row['post_id']})\"
+            url = (
+                f"https://x.com/{username}/status/{row['post_id']}"
+                if username
+                else f"(post {row['post_id']})"
+            )
             lines.append(f"- {url}")
             for bullet in (alpha.get("rationale_bullets") or [])[:3]:
                 lines.append(f"  - {bullet}")

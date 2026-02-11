@@ -109,7 +109,7 @@ def add_members_to_list(
             page,
             selectors=[
                 'a[href$="/members"]',
-                'text=/Members/i',
+                "text=/Members/i",
                 'input[placeholder*="Search"]',
             ],
             timeout_ms=60000,
@@ -155,7 +155,9 @@ def add_members_to_list(
 
             page.wait_for_timeout(750)
             if attempt == 2 and not opened_manage:
-                print("Warning: couldn't confidently open member management UI; will still try searching inline.")
+                print(
+                    "Warning: couldn't confidently open member management UI; will still try searching inline."
+                )
 
         # The manage screen usually contains a search box for accounts.
         search_selectors = [
@@ -243,7 +245,9 @@ def scrape_list(
                 text_locator = article.locator("div[data-testid='tweetText']")
                 text = text_locator.inner_text() if text_locator.count() else ""
                 time_locator = article.locator("time")
-                created_at = time_locator.get_attribute("datetime") if time_locator.count() else None
+                created_at = (
+                    time_locator.get_attribute("datetime") if time_locator.count() else None
+                )
                 username = None
                 if url:
                     match = re.search(r"x\\.com/([^/]+)/status", url)
@@ -285,16 +289,22 @@ def scrape_list(
 def main() -> None:
     load_dotenv()
 
-    parser = argparse.ArgumentParser(description="Playwright list scraper / list member helper (test-only).")
+    parser = argparse.ArgumentParser(
+        description="Playwright list scraper / list member helper (test-only)."
+    )
     parser.add_argument("--list-id", help="X list ID (preferred).")
     parser.add_argument("--list-url", help="Full list URL (optional override).")
     parser.add_argument(
         "--list-alias",
         help="Alias that resolves to env var X_LIST_ID_<ALIAS> (e.g. --list-alias 2uk uses X_LIST_ID_2UK).",
     )
-    parser.add_argument("--login", action="store_true", help="Run interactive login to save session.")
+    parser.add_argument(
+        "--login", action="store_true", help="Run interactive login to save session."
+    )
 
-    parser.add_argument("--add-members", action="store_true", help="Add accounts to the list (best-effort).")
+    parser.add_argument(
+        "--add-members", action="store_true", help="Add accounts to the list (best-effort)."
+    )
     parser.add_argument(
         "--members",
         nargs="*",
@@ -340,7 +350,9 @@ def main() -> None:
     members = list(args.members or [])
     if args.members_file:
         p = Path(args.members_file)
-        members.extend([ln.strip() for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()])
+        members.extend(
+            [ln.strip() for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()]
+        )
 
     if args.add_members:
         add_members_to_list(

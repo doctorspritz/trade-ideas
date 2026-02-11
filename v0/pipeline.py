@@ -7,9 +7,14 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-from v0.db import fetch_unprocessed, init_db, insert_raw_post, text_hash_exists, update_alpha, update_gatekeeper
+from v0.db import (
+    fetch_unprocessed,
+    insert_raw_post,
+    text_hash_exists,
+    update_alpha,
+    update_gatekeeper,
+)
 from v0.llm import build_client, load_prompt, load_schema, normalize_model_name, structured_call
-
 
 NOISE_RE = re.compile(
     r"(\\$[A-Za-z]{1,10})|(\\b(long|short|buy|sell|bullish|bearish|puts|calls|"
@@ -86,10 +91,15 @@ def process_posts(
         )
         update_gatekeeper(conn, post_id, gate)
 
-        if not (gate["is_finance_relevant"] and (gate["is_actionable_trade_idea"] or gate["has_media_worth_processing"])):
+        if not (
+            gate["is_finance_relevant"]
+            and (gate["is_actionable_trade_idea"] or gate["has_media_worth_processing"])
+        ):
             continue
 
-        analyst_input = f"POST_ID: {post_id}\nPOST_URL: {post_url}\nUSERNAME: {username}\nTEXT:\n{text}"
+        analyst_input = (
+            f"POST_ID: {post_id}\nPOST_URL: {post_url}\nUSERNAME: {username}\nTEXT:\n{text}"
+        )
 
         alpha = structured_call(
             client=client,
@@ -102,7 +112,9 @@ def process_posts(
 
         alpha = ensure_origin_fields(alpha, post_id, post_url, username)
         alpha = apply_missing_levels_guardrails(alpha, text)
-        created_at = row["created_at"] or row["scraped_at"] or datetime.now(timezone.utc).isoformat()
+        created_at = (
+            row["created_at"] or row["scraped_at"] or datetime.now(timezone.utc).isoformat()
+        )
         update_alpha(conn, post_id, alpha, created_at)
         processed += 1
 
@@ -123,7 +135,9 @@ def apply_missing_levels_guardrails(alpha: dict[str, Any], text: str) -> dict[st
     return alpha
 
 
-def ensure_origin_fields(alpha: dict[str, Any], post_id: str, post_url: str, username: str) -> dict[str, Any]:
+def ensure_origin_fields(
+    alpha: dict[str, Any], post_id: str, post_url: str, username: str
+) -> dict[str, Any]:
     origin = alpha.get("origin") or {}
     origin.setdefault("author_id", None)
     origin["username"] = origin.get("username") or username or None
